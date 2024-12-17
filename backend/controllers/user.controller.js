@@ -99,28 +99,48 @@ export const updateUser = async (req, res) => {
     ) {
       return res
         .status(400)
-        .json({ error: "Please provide current password and new password" });
+        .json({ error: "Please provide current password and a new password" });
     }
     if (currentPassword && newPassword) {
       const isMatch = await bcrypt.compare(currentPassword, user.password);
       if (!isMatch) {
-        res.status(400).json({ error: "Current password is mismatch" });
+        return res.status(400).json({ error: "Current password is incorrect" });
       }
-      if (newPassword.length < 6) {
-        return res
-          .status(400)
-          .json({ error: "Password must be atleast 6 digit long" });
-      }
+
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(newPassword, salt);
     }
     if (profileImg) {
+      if (user.profileImg) {
+        await cloudinary.uploader.destroy(
+          user.profileImg.split("/").pop().split(".")[0]
+        );
+      }
       const uploadedResponse = await cloudinary.uploader.upload(profileImg);
       profileImg = uploadedResponse.secure_url;
     }
     if (coverImg) {
+      if (user.coverImg) {
+        await cloudinary.uploader.destroy(
+          user.coverImg.split("/").pop().split(".")[0]
+        );
+      }
       const uploadedResponse = await cloudinary.uploader.upload(coverImg);
       coverImg = uploadedResponse.secure_url;
     }
-  } catch (error) {}
+    user.fullname = fullname || user.fullname;
+    user.email = email || user.email;
+    user.username = username || user.username;
+    user.bio = bio || user.bio;
+    user.link = link || user.link;
+    user.profileImg || user.profileImg;
+    user.coverImg || user.coverImg;
+    await user.save();
+    //password should be null in response
+    user.password = null;
+    return res.status(200).json(user);
+  } catch (error) {
+    console.log("Error in updateUser", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
 };
